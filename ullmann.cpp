@@ -4,13 +4,26 @@
 #include <dos.h>
 
 #define TURN_OFF 0xFF
-
+#define POCET_PATER 4
 // Zapojeni
 // Vstupy
+
+// port_floors
 #define BIT_FIRST_FLOOR  0
 #define BIT_SECOND_FLOOR 1
 #define BIT_THIRD_FLOOR  2
 #define BIT_FOURTH_FLOOR 3
+
+// port_buttons
+#define BIT_BUTTON_INNER_FIRST 	  1
+#define BIT_BUTTON_INNER_SECOND   3
+#define BIT_BUTTON_INNER_THIRD 	  5
+#define BIT_BUTTON_INNER_FOURTH	  7
+
+#define BIT_BUTTON_OUTSIDE_FIRST  0
+#define BIT_BUTTON_OUTSIDE_SECOND 2
+#define BIT_BUTTON_OUTSIDE_THIRD  4
+#define BIT_BUTTON_OUTSIDE_FOURTH 6
 
 // Vystupy
 #define BIT_C 0
@@ -30,15 +43,30 @@ const unsigned short port_floors = 0x301;
 const unsigned short port_outputs = 0x300;
 
 
+// struktura pro jednotliva patra
+struct _Floor {
+	unsigned char button_inner;
+	unsigned char button_outside;
+};
+
+const struct _Floor floors[POCET_PATER] = 
+{
+	{BIT_BUTTON_INNER_FIRST, BIT_BUTTON_OUTSIDE_FIRST},
+	{BIT_BUTTON_INNER_SECOND, BIT_BUTTON_OUTSIDE_SECOND},
+	{BIT_BUTTON_INNER_THIRD, BIT_BUTTON_OUTSIDE_THIRD},
+	{BIT_BUTTON_INNER_FOURTH, BIT_BUTTON_OUTSIDE_FOURTH}
+};
+
 // deklarace funkci
 // rizeni vytahu
 void initFirstFloor(void);
 void waitForInput(void);
+void reachFloor(void);
 
 // displej
 void segDisp(void);
 // tabulka konstant
-const unsigned char numbers[5] = 
+const unsigned char numbers[POCET_PATER + 1] = 
 {
 	 0xFF,								// 0
 	(0xFF & ~(1<<BIT_A)),				// 1
@@ -53,6 +81,7 @@ void (*elevatorControlState) (void);
 // globalni promenne
 unsigned char outport_buffer;
 unsigned char current_floor;
+unsigned char wanted_floor;
 
 int main(void) {
 	// init vystupu
@@ -76,6 +105,7 @@ int main(void) {
 
 		// odesli zpracovana data na vystup
 		outportb(port_outputs, outport_buffer);
+
 	} while(!kbhit());
 
 	return 0;
@@ -102,6 +132,23 @@ void initFirstFloor(void) {
 void waitForInput(void) {
 	// nacti vstupy 
 	const unsigned char input = inportb(port_buttons);
+
+	for(int i = 0; i<POCET_PATER; i++) {
+		// test tlacitek i-teho podlazi
+		if(!((input & 1<<floors[i].button_inner) && (input & 1<<floors[i].button_outside))) {
+			
+			// nastav pozadovane patro
+			wanted_floor = i + 1;
+
+			// posun stav programu
+			elevatorControlState = reachFloor;
+			break;
+		}
+	}
+}
+
+void reachFloor(void) {
+	// TODO test na dvere
 }
 
 void segDisp(void) {
