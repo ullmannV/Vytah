@@ -173,6 +173,7 @@ void reachFloor(void) {
 
 		static unsigned char lastInput;
 
+		// detekce sestupne hrany
 		if((lastInput == 0xFF) && (~input) ) {
 			if (outport_buffer & 1<<BIT_DIRECTION)
 				current_floor++;  // pohyb nahoru
