@@ -40,7 +40,7 @@ void segDisp(void);
 // tabulka konstant
 const unsigned char numbers[5] = 
 {
-	0xFF,								// 0
+	 0xFF,								// 0
 	(0xFF & ~(1<<BIT_A)),				// 1
 	(0xFF & ~(1<<BIT_B)),				// 2
 	(0xFF & ~(1<<BIT_A) & ~(1<<BIT_B)),	// 3
@@ -100,7 +100,8 @@ void initFirstFloor(void) {
 }
 
 void waitForInput(void) {
-
+	// nacti vstupy 
+	const unsigned char input = inportb(port_buttons);
 }
 
 void segDisp(void) {
