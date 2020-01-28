@@ -31,8 +31,21 @@ const unsigned short port_outputs = 0x300;
 
 
 // deklarace funkci
+// rizeni vytahu
 void initFirstFloor(void);
 void waitForInput(void);
+
+// displej
+void segDisp(void);
+// tabulka konstant
+const unsigned char numbers[5] = 
+{
+	0xFF,								// 0
+	(0xFF & ~(1<<BIT_A)),				// 1
+	(0xFF & ~(1<<BIT_B)),				// 2
+	(0xFF & ~(1<<BIT_A) & ~(1<<BIT_B)),	// 3
+	(0xFF & ~(1<<BIT_C))				// 4 
+};
 
 // ukazatel na funkce ridici program
 void (*elevatorControlState) (void);
@@ -46,13 +59,20 @@ int main(void) {
 	outport_buffer = TURN_OFF;
 	outportb(port_outputs, outport_buffer);
 	
+	// vychozi hodnota soucasneho patra
+	current_floor = 0;
+
 	// prvni stav programu
 	elevatorControlState = initFirstFloor;
 
 	do {
 		// Main Infinite Loop
 		
+		// rizeni vytahu
 		elevatorControlState();
+
+		// rizeni displeje
+		segDisp();
 
 		// odesli zpracovana data na vystup
 		outportb(port_outputs, outport_buffer);
@@ -81,4 +101,11 @@ void initFirstFloor(void) {
 
 void waitForInput(void) {
 
+}
+
+void segDisp(void) {
+	// reset hodnot
+	outport_buffer |= 1<<BIT_A | 1<<BIT_B | 1<<BIT_C; 
+	// nastaveni novych hodnot
+	outport_buffer &= numbers[current_floor];
 }
