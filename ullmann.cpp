@@ -9,10 +9,16 @@
 // Vstupy
 
 // port_floors
-#define BIT_FIRST_FLOOR  0
-#define BIT_SECOND_FLOOR 1
-#define BIT_THIRD_FLOOR  2
-#define BIT_FOURTH_FLOOR 3
+#define BIT_FIRST_FLOOR  1
+#define BIT_SECOND_FLOOR 3
+#define BIT_THIRD_FLOOR  5
+#define BIT_FOURTH_FLOOR 7
+
+#define BIT_SENSOR_DOOR  0
+#define BIT_SENSOR_FLOOR 2
+#define BIT_SENSOR_PULSE 4
+#define BIT_UNATTACHED   6
+
 
 // port_buttons
 #define BIT_BUTTON_INNER_FIRST 	  1
@@ -149,6 +155,39 @@ void waitForInput(void) {
 
 void reachFloor(void) {
 	// TODO test na dvere
+	if(current_floor != wanted_floor) {
+		
+		// rozhodni o smeru kabiny
+		if(current_floor < wanted_floor)
+			outport_buffer |= 1<<BIT_DIRECTION;
+		else
+			outport_buffer &= ~(1<<BIT_DIRECTION);
+		
+		// zapni motor
+		outport_buffer &= ~(1<<BIT_MOTOR);
+
+		const unsigned char input = inportb(port_floors);
+		
+		// zamaskuj nezajimave bity
+		input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
+
+		static unsigned char lastInput;
+
+		if((lastInput == 0xFF) && (~input) ) {
+			if (outport_buffer & 1<<BIT_DIRECTION)
+				current_floor++;  // pohyb nahoru
+			else 		
+				current_floor--;  // pohyb dolu
+		}
+		
+		lastInput = input;
+	}
+	else {
+		// pozadovane patro dosazeno
+		outport_buffer |= 1<<BIT_MOTOR;
+
+		elevatorControlState = waitForInput;
+	}
 }
 
 void segDisp(void) {
