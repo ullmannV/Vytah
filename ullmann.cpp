@@ -32,6 +32,7 @@ const unsigned short port_outputs = 0x300;
 
 // deklarace funkci
 void initFirstFloor(void);
+void waitForInput(void);
 
 // ukazatel na funkce ridici program
 void (*elevatorControlState) (void);
@@ -69,7 +70,15 @@ void initFirstFloor(void) {
 		// ano jsme
 		outport_buffer |= 1<<BIT_MOTOR;
 		current_floor = 1;
-		elevatorControlState = 
+		elevatorControlState = waitForInput;
 	}
+	else {
+		// posli motor smerem dolu 
+		outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
+	}
+
+}
+
+void waitForInput(void) {
 
 }
