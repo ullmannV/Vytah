@@ -39,7 +39,7 @@
 #define BIT_A 4
 #define BIT_LIGHT 5
 #define BIT_ARROW_UP 6
-#define BIT_ARROW_DOWN 7 
+#define BIT_ARROW_DOWN 7
 
 // Vstupni a vystupni porty
 // Vstupy
@@ -55,7 +55,7 @@ struct _Floor {
 	unsigned char button_outside;
 };
 
-const struct _Floor floors[POCET_PATER] = 
+const struct _Floor floors[POCET_PATER] =
 {
 	{BIT_BUTTON_INNER_FIRST, BIT_BUTTON_OUTSIDE_FIRST},
 	{BIT_BUTTON_INNER_SECOND, BIT_BUTTON_OUTSIDE_SECOND},
@@ -69,16 +69,17 @@ void initFirstFloor(void);
 void waitForInput(void);
 void reachFloor(void);
 
-// displej
+// displeje
 void segDisp(void);
+void arrowDisp(void);
 // tabulka konstant
-const unsigned char numbers[POCET_PATER + 1] = 
+const unsigned char numbers[POCET_PATER + 1] =
 {
-	 0xFF,								// 0
-	(0xFF & ~(1<<BIT_A)),				// 1
-	(0xFF & ~(1<<BIT_B)),				// 2
-	(0xFF & ~(1<<BIT_A) & ~(1<<BIT_B)),	// 3
-	(0xFF & ~(1<<BIT_C))				// 4 
+	 0,								// 0
+	(1<<BIT_A),				// 1
+	(1<<BIT_B),				// 2
+	(1<<BIT_A | 1<<BIT_B),	// 3
+	(1<<BIT_C)				// 4
 };
 
 // ukazatel na funkce ridici program
@@ -93,7 +94,7 @@ int main(void) {
 	// init vystupu
 	outport_buffer = TURN_OFF;
 	outportb(port_outputs, outport_buffer);
-	
+
 	// vychozi hodnota soucasneho patra
 	current_floor = 0;
 
@@ -102,18 +103,22 @@ int main(void) {
 
 	do {
 		// Main Infinite Loop
-		
+
 		// rizeni vytahu
 		elevatorControlState();
 
 		// rizeni displeje
 		segDisp();
 
+		// rizeni sipek
+    arrowDisp();
+
 		// odesli zpracovana data na vystup
 		outportb(port_outputs, outport_buffer);
 
 	} while(!kbhit());
-
+	outport_buffer = TURN_OFF;
+	outportb(port_outputs, outport_buffer);
 	return 0;
 }
 
@@ -129,20 +134,22 @@ void initFirstFloor(void) {
 		elevatorControlState = waitForInput;
 	}
 	else {
-		// posli motor smerem dolu 
+		// posli motor smerem dolu
 		outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
 	}
 
 }
 
 void waitForInput(void) {
-	// nacti vstupy 
+	// vypni svetlo
+	outport_buffer |= 1<<BIT_LIGHT;
+	// nacti vstupy
 	const unsigned char input = inportb(port_buttons);
 
 	for(int i = 0; i<POCET_PATER; i++) {
 		// test tlacitek i-teho podlazi
 		if(!((input & 1<<floors[i].button_inner) && (input & 1<<floors[i].button_outside))) {
-			
+
 			// nastav pozadovane patro
 			wanted_floor = i + 1;
 
@@ -154,33 +161,35 @@ void waitForInput(void) {
 }
 
 void reachFloor(void) {
+	// zapni svetlo
+	outport_buffer &= ~(1<<BIT_LIGHT);
 	// TODO test na dvere
 	if(current_floor != wanted_floor) {
-		
+
 		// rozhodni o smeru kabiny
 		if(current_floor < wanted_floor)
 			outport_buffer |= 1<<BIT_DIRECTION;
 		else
 			outport_buffer &= ~(1<<BIT_DIRECTION);
-		
+
 		// zapni motor
 		outport_buffer &= ~(1<<BIT_MOTOR);
 
-		const unsigned char input = inportb(port_floors);
-		
+		unsigned char input = inportb(port_floors);
+
 		// zamaskuj nezajimave bity
 		input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
 
-		static unsigned char lastInput;
+		static unsigned char lastInput = 0;
 
 		// detekce sestupne hrany
 		if((lastInput == 0xFF) && (~input) ) {
 			if (outport_buffer & 1<<BIT_DIRECTION)
 				current_floor++;  // pohyb nahoru
-			else 		
+			else
 				current_floor--;  // pohyb dolu
 		}
-		
+
 		lastInput = input;
 	}
 	else {
@@ -193,7 +202,22 @@ void reachFloor(void) {
 
 void segDisp(void) {
 	// reset hodnot
-	outport_buffer |= 1<<BIT_A | 1<<BIT_B | 1<<BIT_C; 
+	outport_buffer &= ~(1<<BIT_A) & ~(1<<BIT_B) & ~(1<<BIT_C);
 	// nastaveni novych hodnot
-	outport_buffer &= numbers[current_floor];
+	outport_buffer |= numbers[current_floor];
+}
+
+void arrowDisp(void) {
+	// test zda se toci motor
+	if(!(outport_buffer & 1<<BIT_MOTOR)) {
+		// ANO -> zapni sipky
+		if(outport_buffer & 1<<BIT_DIRECTION)
+			outport_buffer &= ~(1<<BIT_ARROW_UP);
+		else
+    		outport_buffer &= ~(1<<BIT_ARROW_DOWN);
+	}
+	else {
+		// NE -> vypni sipky
+		outport_buffer |= 1<<BIT_ARROW_UP | 1<<BIT_ARROW_DOWN;
+	}
 }
