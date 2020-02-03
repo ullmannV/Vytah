@@ -90,38 +90,6 @@ unsigned char outport_buffer;
 unsigned char current_floor;
 unsigned char wanted_floor;
 
-int main(void) {
-	// init vystupu
-	outport_buffer = TURN_OFF;
-	outportb(port_outputs, outport_buffer);
-
-	// vychozi hodnota soucasneho patra
-	current_floor = 0;
-
-	// prvni stav programu
-	elevatorControlState = initFirstFloor;
-
-	do {
-		// Main Infinite Loop
-
-		// rizeni vytahu
-		elevatorControlState();
-
-		// rizeni displeje
-		segDisp();
-
-		// rizeni sipek
-    arrowDisp();
-
-		// odesli zpracovana data na vystup
-		outportb(port_outputs, outport_buffer);
-
-	} while(!kbhit());
-	outport_buffer = TURN_OFF;
-	outportb(port_outputs, outport_buffer);
-	return 0;
-}
-
 void initFirstFloor(void) {
 	// nacti polohu kabiny
 	const unsigned char input = inportb(port_floors);
@@ -220,4 +188,36 @@ void arrowDisp(void) {
 		// NE -> vypni sipky
 		outport_buffer |= 1<<BIT_ARROW_UP | 1<<BIT_ARROW_DOWN;
 	}
+}
+
+int main(void) {
+	// init vystupu
+	outport_buffer = TURN_OFF;
+	outportb(port_outputs, outport_buffer);
+
+	// vychozi hodnota soucasneho patra
+	current_floor = 0;
+
+	// prvni stav programu
+	elevatorControlState = initFirstFloor;
+
+	do {
+		// Main Infinite Loop
+
+		// rizeni vytahu
+		elevatorControlState();
+
+		// rizeni displeje
+		segDisp();
+
+		// rizeni sipek
+   		arrowDisp();
+
+		// odesli zpracovana data na vystup
+		outportb(port_outputs, outport_buffer);
+
+	} while(!kbhit());
+	outport_buffer = TURN_OFF;
+	outportb(port_outputs, outport_buffer);
+	return 0;
 }
