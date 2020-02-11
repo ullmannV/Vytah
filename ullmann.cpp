@@ -122,6 +122,7 @@ waitForInput(void)
 
     for (int i = 0; i<POCET_PATER; i++) {
         /* test tlacitek i-teho podlazi */
+        
         if (!((input & 1<<floors[i].button_inner) && (input & 1<<floors[i].button_outside))) {
 
             /* nastav pozadovane patro */
@@ -129,7 +130,7 @@ waitForInput(void)
 
             /* posun stav programu */
             elevatorControlState = reachFloor;
-            break;
+            return; /* vstupni data ziskana muzeme opustit tento progran */
         }
     }
 }
@@ -139,39 +140,49 @@ reachFloor(void)
 {
     /* zapni svetlo */
     outport_buffer &= ~(1<<BIT_LIGHT);
-    // TODO test na dvere
-    if (current_floor != wanted_floor) {
 
-        /* rozhodni o smeru kabiny */
-        if (current_floor < wanted_floor)
-            outport_buffer |= 1<<BIT_DIRECTION;
-        else
-            outport_buffer &= ~(1<<BIT_DIRECTION);
+    /* Nacti vstup */
+    unsigned char input = inportb(port_floors);
 
-        /* zapni motor */
-        outport_buffer &= ~(1<<BIT_MOTOR);
+    /* Test zavrenych dveri*/
+    if (!(input & 1<<BIT_SENSOR_DOOR)) {
+        /* Kabina zavrena */
+        if (current_floor != wanted_floor) {
 
-        unsigned char input = inportb(port_floors);
-
-        /* zamaskuj nezajimave bity */
-        input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
-
-        static unsigned char lastInput = 0;
-
-        /* detekce libovolne sestupne hrany */
-        if ((lastInput == 0xFF) && (~input)) {
-            if (outport_buffer & 1<<BIT_DIRECTION)
-                current_floor++;  /* pohyb nahoru */
+            /* rozhodni o smeru kabiny */
+            if (current_floor < wanted_floor)
+                outport_buffer |= 1<<BIT_DIRECTION;
             else
-                current_floor--;  /* pohyb dolu */
+                outport_buffer &= ~(1<<BIT_DIRECTION);
+
+            /* zapni motor */
+            outport_buffer &= ~(1<<BIT_MOTOR);
+
+            /* zamaskuj nezajimave bity */
+            input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
+
+            static unsigned char lastInput = 0;
+
+            /* detekce libovolne sestupne hrany */
+            if ((lastInput == 0xFF) && (~input)) {
+                if (outport_buffer & 1<<BIT_DIRECTION)
+                    current_floor++;  /* pohyb nahoru */
+                else
+                    current_floor--;  /* pohyb dolu */
+            }
+
+            lastInput = input;
+        } else {
+            /* pozadovane patro dosazeno */
+            outport_buffer |= 1<<BIT_MOTOR;
+
+            elevatorControlState = waitForInput;
         }
-
-        lastInput = input;
     } else {
-        /* pozadovane patro dosazeno */
-        outport_buffer |= 1<<BIT_MOTOR;
+        /* Kabina otevrena*/
 
-        elevatorControlState = waitForInput;
+        /* Vypni motor */
+        outport_buffer |= 1<<BIT_MOTOR;
     }
 }
 
