@@ -108,8 +108,7 @@ initFirstFloor(void)
     } else {
         /* posli motor smerem dolu */
         outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
-	}
-
+    }
 }
 
 void
