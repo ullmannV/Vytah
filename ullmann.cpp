@@ -5,6 +5,7 @@
 
 #define TURN_OFF 0xFF
 #define POCET_PATER 4
+
 /* Zapojeni */
 /* Vstupy */
 
@@ -35,11 +36,11 @@
 #define BIT_C			  0
 #define BIT_MOTOR 		  1
 #define BIT_B			  2
-#define BIT_DIRECTION             3
-#define BIT_A                     4
-#define BIT_LIGHT                 5
-#define BIT_ARROW_UP              6
-#define BIT_ARROW_DOWN            7
+#define BIT_DIRECTION     3
+#define BIT_A             4
+#define BIT_LIGHT         5
+#define BIT_ARROW_UP      6
+#define BIT_ARROW_DOWN    7
 
 /* Vstupni a vystupni porty */
 /* Vstupy */
@@ -51,16 +52,16 @@ static const unsigned short port_outputs = 0x300;
 
 /* struktura pro jednotliva patra */
 struct _Floor {
-	unsigned char button_inner;
-	unsigned char button_outside;
+    unsigned char button_inner;
+    unsigned char button_outside;
 };
 
 static const struct _Floor floors[POCET_PATER] =
 {
-	{BIT_BUTTON_INNER_FIRST, BIT_BUTTON_OUTSIDE_FIRST},
-	{BIT_BUTTON_INNER_SECOND, BIT_BUTTON_OUTSIDE_SECOND},
-	{BIT_BUTTON_INNER_THIRD, BIT_BUTTON_OUTSIDE_THIRD},
-	{BIT_BUTTON_INNER_FOURTH, BIT_BUTTON_OUTSIDE_FOURTH}
+    {BIT_BUTTON_INNER_FIRST, BIT_BUTTON_OUTSIDE_FIRST},
+    {BIT_BUTTON_INNER_SECOND, BIT_BUTTON_OUTSIDE_SECOND},
+    {BIT_BUTTON_INNER_THIRD, BIT_BUTTON_OUTSIDE_THIRD},
+    {BIT_BUTTON_INNER_FOURTH, BIT_BUTTON_OUTSIDE_FOURTH}
 };
 
 /*
@@ -77,11 +78,11 @@ void arrowDisp(void);
 /* tabulka konstant pro cisla na displeji */
 static const unsigned char numbers[POCET_PATER + 1] =
 {
-	 0,			/* 0 */
-	(1<<BIT_A),		/* 1 */
-	(1<<BIT_B),		/* 2 */
-	(1<<BIT_A | 1<<BIT_B),	/* 3 */
-	(1<<BIT_C)		/* 4 */
+    0,			            /* 0 */
+    (1<<BIT_A),		        /* 1 */
+    (1<<BIT_B),		        /* 2 */
+    (1<<BIT_A | 1<<BIT_B),	/* 3 */
+    (1<<BIT_C)	        	/* 4 */
 };
 
 /* ukazatel na funkce ridici program */
@@ -92,134 +93,144 @@ static unsigned char outport_buffer;
 static unsigned char current_floor;
 static unsigned char wanted_floor;
 
-void initFirstFloor(void) {
-	/* nacti polohu kabiny */
-	const unsigned char input = inportb(port_floors);
+void
+initFirstFloor(void) 
+{
+    /* nacti polohu kabiny */
+    const unsigned char input = inportb(port_floors);
 
-	/* Test zda jsme v prizemi */
-	if(!(input & 1<<BIT_FIRST_FLOOR)) {
-		/* ano jsme */
-		outport_buffer |= 1<<BIT_MOTOR;
-		current_floor = 1;
-		elevatorControlState = waitForInput;
-	}
-	else {
-		/* posli motor smerem doluv */
-		outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
+    /* Test zda jsme v prizemi */
+    if (!(input & 1<<BIT_FIRST_FLOOR)) {
+        /* ano jsme */
+        outport_buffer |= 1<<BIT_MOTOR;
+        current_floor = 1;
+        elevatorControlState = waitForInput;
+    } else {
+        /* posli motor smerem doluv */
+        outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
 	}
 
 }
 
-void waitForInput(void) {
-	/* vypni svetlo */
-	outport_buffer |= 1<<BIT_LIGHT;
-	/* nacti vstupy */
-	const unsigned char input = inportb(port_buttons);
+void
+waitForInput(void) 
+{
+    /* vypni svetlo */
+    outport_buffer |= 1<<BIT_LIGHT;
+    /* nacti vstupy */
+    const unsigned char input = inportb(port_buttons);
 
-	for(int i = 0; i<POCET_PATER; i++) {
-		/* test tlacitek i-teho podlazi */
-		if(!((input & 1<<floors[i].button_inner) && (input & 1<<floors[i].button_outside))) {
+    for (int i = 0; i<POCET_PATER; i++) {
+        /* test tlacitek i-teho podlazi */
+        if (!((input & 1<<floors[i].button_inner) && (input & 1<<floors[i].button_outside))) {
 
-			/* nastav pozadovane patro */
-			wanted_floor = i + 1;
+            /* nastav pozadovane patro */
+            wanted_floor = i + 1;
 
-			/* posun stav programu */
-			elevatorControlState = reachFloor;
-			break;
-		}
-	}
+            /* posun stav programu */
+            elevatorControlState = reachFloor;
+            break;
+        }
+    }
 }
 
-void reachFloor(void) {
-	/* zapni svetlo */
-	outport_buffer &= ~(1<<BIT_LIGHT);
-	// TODO test na dvere
-	if(current_floor != wanted_floor) {
+void
+reachFloor(void)
+{
+    /* zapni svetlo */
+    outport_buffer &= ~(1<<BIT_LIGHT);
+    // TODO test na dvere
+    if (current_floor != wanted_floor) {
 
-		/* rozhodni o smeru kabiny */
-		if(current_floor < wanted_floor)
-			outport_buffer |= 1<<BIT_DIRECTION;
-		else
-			outport_buffer &= ~(1<<BIT_DIRECTION);
+        /* rozhodni o smeru kabiny */
+        if (current_floor < wanted_floor)
+            outport_buffer |= 1<<BIT_DIRECTION;
+        else
+            outport_buffer &= ~(1<<BIT_DIRECTION);
 
-		/* zapni motor */
-		outport_buffer &= ~(1<<BIT_MOTOR);
+        /* zapni motor */
+        outport_buffer &= ~(1<<BIT_MOTOR);
 
-		unsigned char input = inportb(port_floors);
+        unsigned char input = inportb(port_floors);
 
-		/* zamaskuj nezajimave bity */
-		input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
+        /* zamaskuj nezajimave bity */
+        input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
 
-		static unsigned char lastInput = 0;
+        static unsigned char lastInput = 0;
 
-		/* detekce sestupne hrany */
-		if ((lastInput == 0xFF) && (~input) ) {
-			if (outport_buffer & 1<<BIT_DIRECTION)
-				current_floor++;  /* pohyb nahoru */
-			else
-				current_floor--;  /* pohyb dolu */
-		}
+        /* detekce libovolne sestupne hrany */
+        if ((lastInput == 0xFF) && (~input)) {
+            if (outport_buffer & 1<<BIT_DIRECTION)
+                current_floor++;  /* pohyb nahoru */
+            else
+                current_floor--;  /* pohyb dolu */
+        }
 
-		lastInput = input;
-	}
-	else {
-		/* pozadovane patro dosazeno */
-		outport_buffer |= 1<<BIT_MOTOR;
+        lastInput = input;
+    } else {
+        /* pozadovane patro dosazeno */
+        outport_buffer |= 1<<BIT_MOTOR;
 
-		elevatorControlState = waitForInput;
-	}
+        elevatorControlState = waitForInput;
+    }
 }
 
-void segDisp(void) {
-	/* reset hodnot */
-	outport_buffer &= ~(1<<BIT_A) & ~(1<<BIT_B) & ~(1<<BIT_C);
-	/* nastaveni novych hodnot */
-	outport_buffer |= numbers[current_floor];
+void
+segDisp(void)
+{
+    /* reset hodnot */
+    outport_buffer &= ~(1<<BIT_A) & ~(1<<BIT_B) & ~(1<<BIT_C);
+    /* nastaveni novych hodnot */
+    outport_buffer |= numbers[current_floor];
 }
 
-void arrowDisp(void) {
-	/* test zda se toci motor */
-	if(!(outport_buffer & 1<<BIT_MOTOR)) {
-		/* ANO -> zapni sipky */
-		if(outport_buffer & 1<<BIT_DIRECTION)
-			outport_buffer &= ~(1<<BIT_ARROW_UP);
-		else
-    		outport_buffer &= ~(1<<BIT_ARROW_DOWN);
-	}
-	else {
-		/* NE -> vypni sipky */
-		outport_buffer |= 1<<BIT_ARROW_UP | 1<<BIT_ARROW_DOWN;
-	}
+void
+arrowDisp(void)
+{
+    /* test zda se toci motor */
+    if (!(outport_buffer & 1<<BIT_MOTOR)) {
+        /* ANO -> zapni sipky */
+        if (outport_buffer & 1<<BIT_DIRECTION)
+            outport_buffer &= ~(1<<BIT_ARROW_UP);
+        else
+            outport_buffer &= ~(1<<BIT_ARROW_DOWN);
+    } else {
+        /* NE -> vypni sipky */
+        outport_buffer |= 1<<BIT_ARROW_UP | 1<<BIT_ARROW_DOWN;
+    }
 }
 
-int main(void) {
-	/* init vystupu */
-	outport_buffer = TURN_OFF;
-	outportb(port_outputs, outport_buffer);
+int
+main(void)
+{
+    /* init vystupu */
+    outport_buffer = TURN_OFF;
+    outportb(port_outputs, outport_buffer);
 
-	/* vychozi hodnota soucasneho patra */
-	current_floor = 0;
+    /* vychozi hodnota soucasneho patra */
+    current_floor = 0;
 
-	/* prvni stav programu */
-	elevatorControlState = initFirstFloor;
+    /* prvni stav programu */
+    elevatorControlState = initFirstFloor;
 
-	do {
-		/* Main Infinite Loop */
+    do {
+        /* Main Infinite Loop */
 
-		/* rizeni vytahu */
-		elevatorControlState();
+        /* rizeni vytahu */
+        elevatorControlState();
 
-		/* rizeni displeje */
-		segDisp();
+        /* rizeni displeje */
+        segDisp();
 
-		/* rizeni sipek */
-   		arrowDisp();
+        /* rizeni sipek */
+        arrowDisp();
 
-		/* odesli zpracovana data na vystup */
-		outportb(port_outputs, outport_buffer);
+        /* odesli zpracovana data na vystup */
+        outportb(port_outputs, outport_buffer);
 
-	} while(!kbhit());
-	outport_buffer = TURN_OFF;
-	outportb(port_outputs, outport_buffer);
-	return 0;
+    } while (!kbhit());
+	
+    outport_buffer = TURN_OFF;
+    outportb(port_outputs, outport_buffer);
+    return 0;
 }
