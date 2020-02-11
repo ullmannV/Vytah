@@ -106,7 +106,7 @@ initFirstFloor(void)
         current_floor = 1;
         elevatorControlState = waitForInput;
     } else {
-        /* posli motor smerem doluv */
+        /* posli motor smerem dolu */
         outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
 	}
 
@@ -120,17 +120,35 @@ waitForInput(void)
     /* nacti vstupy */
     const unsigned char input = inportb(port_buttons);
 
-    for (int i = 0; i<POCET_PATER; i++) {
+    int i;
+    for (i = 0; i < POCET_PATER; i++) {
         /* test tlacitek i-teho podlazi */
-        
-        if (!((input & 1<<floors[i].button_inner) && (input & 1<<floors[i].button_outside))) {
 
-            /* nastav pozadovane patro */
-            wanted_floor = i + 1;
+        /* Pokud je vytah prazdny prijmi vstup pouze zvenku */ 
+        if (input & 1<<BIT_SENSOR_FLOOR) {
+            /* vytah je prazdny  */
 
-            /* posun stav programu */
-            elevatorControlState = reachFloor;
-            return; /* vstupni data ziskana muzeme opustit tento progran */
+            /* otestuj vnejsi tlacitko na stisk */
+            if (!(input & 1<<floors[i].button_outside)) {
+                /* nastav pozadovane patro */                                        
+                wanted_floor = i + 1;
+                                                                               
+                /* posun stav programu */
+                elevatorControlState = reachFloor;
+                return; /* vstupni data ziskana muzeme opustit tento progran */
+            }
+        } else {
+            /* Vytah je obsazen  */
+
+            /* otestuj vnitrni tlacitko na stisk */
+            if (!(input & 1<<floors[i].button_inner)) {
+                /* nastav pozadovane patro */
+                wanted_floor = i + 1;
+                                                                
+                /* posun stav programu */
+                elevatorControlState = reachFloor;
+                return; /* vstupni data ziskana muzeme opustit tento progran */
+            }
         }
     }
 }
@@ -160,8 +178,9 @@ reachFloor(void)
 
             /* zamaskuj nezajimave bity */
             input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
-
-            static unsigned char lastInput = 0;
+            
+            /* inicializace staticke promenne */
+            static unsigned char lastInput = 0; 
 
             /* detekce libovolne sestupne hrany */
             if ((lastInput == 0xFF) && (~input)) {
@@ -175,7 +194,7 @@ reachFloor(void)
         } else {
             /* pozadovane patro dosazeno */
             outport_buffer |= 1<<BIT_MOTOR;
-
+            /* TODO CINK*/
             elevatorControlState = waitForInput;
         }
     } else {
