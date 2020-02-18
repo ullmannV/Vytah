@@ -33,9 +33,9 @@
 #define BIT_BUTTON_OUTSIDE_FOURTH 6
 
 /* Vystupy */
-#define BIT_C			  0
-#define BIT_MOTOR 		  1
-#define BIT_B			  2
+#define BIT_C             0
+#define BIT_MOTOR         1
+#define BIT_B             2
 #define BIT_DIRECTION     3
 #define BIT_A             4
 #define BIT_LIGHT         5
@@ -45,7 +45,7 @@
 /* Vstupni a vystupni porty */
 /* Vstupy */
 static const unsigned short port_buttons = 0x300;
-static const unsigned short port_floors = 0x301;
+static const unsigned short port_floors  = 0x301;
 /* Vystupy */
 static const unsigned short port_outputs = 0x300;
 
@@ -76,10 +76,11 @@ void reachFloor(void);
 void segDisp(void);
 void arrowDisp(void);
 void light(void);
+
 /* tabulka konstant pro cisla na displeji */
 static const unsigned char numbers[POCET_PATER + 1] =
 {
-    0,			            /* 0 */
+    0,                      /* 0 */
     (1<<BIT_A),		        /* 1 */
     (1<<BIT_B),		        /* 2 */
     (1<<BIT_A | 1<<BIT_B),	/* 3 */
@@ -102,13 +103,13 @@ initFirstFloor(void)
 
     /* Test zda jsme v prizemi */
     if (!(input & 1<<BIT_FIRST_FLOOR)) {
-	/* ano jsme */
-	outport_buffer |= 1<<BIT_MOTOR;
-	current_floor = 1;
-	elevatorControlState = waitForInput;
+        /* ano jsme */
+        outport_buffer |= 1<<BIT_MOTOR;
+        current_floor = 1;
+        elevatorControlState = waitForInput;
     } else {
-	/* posli motor smerem dolu */
-	outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
+        /* posli motor smerem dolu */
+        outport_buffer &= ~(1<<BIT_MOTOR) & ~(1<<BIT_DIRECTION);
     }
 }
 
@@ -118,35 +119,37 @@ waitForInput(void)
     /* nacti vstupy */
     const unsigned char input = inportb(port_buttons);
     const unsigned char input_floors = inportb(port_floors);
+    
+    int i;
+    for (i = 0; i < POCET_PATER; i++) {
+        /* test tlacitek i-teho podlazi */
+        /* Pokud je vytah prazdny prijmi vstup pouze zvenku */
+        if(input_floors & 1<<BIT_SENSOR_FLOOR) {
+            /* vytah je prazdny  */
 
-    for (int i = 0; i < POCET_PATER; i++) {
-	/* test tlacitek i-teho podlazi */
-	/* Pokud je vytah prazdny prijmi vstup pouze zvenku */
-	if(input_floors & 1<<BIT_SENSOR_FLOOR) {
-	    /* vytah je prazdny  */
+            /* otestuj vnejsi tlacitko na stisk */
+            if (!(input & 1<<floors[i].button_outside)) {
+                /* nastav pozadovane patro */
+                wanted_floor = i + 1;
 
-	    /* otestuj vnejsi tlacitko na stisk */
-	    if (!(input & 1<<floors[i].button_outside)) {
-		/* nastav pozadovane patro */
-		wanted_floor = i + 1;
+                /* posun stav programu */
+                elevatorControlState = reachFloor;
+                return; /* vstupni data ziskana muzeme opustit tento progran */
+            }
+            /*END of IF*/
+        } else {
+            /* Vytah je obsazen  */
 
-		/* posun stav programu */
-		elevatorControlState = reachFloor;
-		return; /* vstupni data ziskana muzeme opustit tento progran */
-	    }
-	} else {
-	    /* Vytah je obsazen  */
+            /* otestuj vnitrni tlacitko na stisk */
+            if (!(input & 1<<floors[i].button_inner)) {
+                /* nastav pozadovane patro */
+                wanted_floor = i + 1;
 
-	    /* otestuj vnitrni tlacitko na stisk */
-	    if (!(input & 1<<floors[i].button_inner)) {
-		/* nastav pozadovane patro */
-		wanted_floor = i + 1;
-
-		/* posun stav programu */
-		elevatorControlState = reachFloor;
-		return; /* vstupni data ziskana muzeme opustit tento progran */
-	    }
-	}
+                /* posun stav programu */
+                elevatorControlState = reachFloor;
+                return; /* vstupni data ziskana muzeme opustit tento progran */
+            }
+        }
     }
 }
 
@@ -158,44 +161,45 @@ reachFloor(void)
 
     /* Test zavrenych dveri*/
     if (!(input & 1<<BIT_SENSOR_DOOR)) {
-	/* Kabina zavrena */
-	if (current_floor != wanted_floor) {
+	    /* Kabina zavrena */
+    	if (current_floor != wanted_floor) {
 
-	    /* rozhodni o smeru kabiny */
-	    if (current_floor < wanted_floor)
-		outport_buffer |= 1<<BIT_DIRECTION;
-	    else
-		outport_buffer &= ~(1<<BIT_DIRECTION);
+            /* inicializace staticke promenne */
+            static unsigned char lastInput = 0; 	    
 
-	    /* zapni motor */
-	    outport_buffer &= ~(1<<BIT_MOTOR);
+            /* rozhodni o smeru kabiny */
+            if (current_floor < wanted_floor)
+                outport_buffer |= 1<<BIT_DIRECTION;
+            else
+                outport_buffer &= ~(1<<BIT_DIRECTION);
 
-	    /* zamaskuj nezajimave bity */
-	    input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
+            /* zapni motor */
+            outport_buffer &= ~(1<<BIT_MOTOR);
 
-	    /* inicializace staticke promenne */
-	    static unsigned char lastInput = 0;
+            /* zamaskuj nezajimave bity */
+            input |= 1<<BIT_SENSOR_DOOR | 1<<BIT_SENSOR_FLOOR | 1<<BIT_SENSOR_PULSE | 1<<BIT_UNATTACHED;
 
-	    /* detekce libovolne sestupne hrany */
-	    if ((lastInput == 0xFF) && (~input)) {
-		if (outport_buffer & 1<<BIT_DIRECTION)
-		    current_floor++;  /* pohyb nahoru */
-		else
-		    current_floor--;  /* pohyb dolu */
-	    }
+            /* detekce libovolne sestupne hrany */
+            if ((lastInput == 0xFF) && (~input)) {
+                if (outport_buffer & 1<<BIT_DIRECTION)
+                    current_floor++;  /* pohyb nahoru */
+                else
+                    current_floor--;  /* pohyb dolu */
+            }
 
-	    lastInput = input;
-	} else {
-	    /* pozadovane patro dosazeno */
-	    outport_buffer |= 1<<BIT_MOTOR;
-	    /* TODO CINK*/
-	    elevatorControlState = waitForInput;
-	}
+            lastInput = input;
+
+        } else {
+            /* pozadovane patro dosazeno */
+            outport_buffer |= 1<<BIT_MOTOR;
+            elevatorControlState = waitForInput;
+        }
+
     } else {
-	/* Kabina otevrena*/
+        /* Kabina otevrena*/
 
-	/* Vypni motor */
-	outport_buffer |= 1<<BIT_MOTOR;
+        /* Vypni motor */
+        outport_buffer |= 1<<BIT_MOTOR;
     }
 }
 
@@ -213,14 +217,15 @@ arrowDisp(void)
 {
     /* test zda se toci motor */
     if (!(outport_buffer & 1<<BIT_MOTOR)) {
-	/* ANO -> zapni sipky */
-	if (outport_buffer & 1<<BIT_DIRECTION)
-	    outport_buffer &= ~(1<<BIT_ARROW_UP);
-	else
-	    outport_buffer &= ~(1<<BIT_ARROW_DOWN);
+
+        /* ANO -> zapni sipky */
+        if (outport_buffer & 1<<BIT_DIRECTION)
+            outport_buffer &= ~(1<<BIT_ARROW_UP);
+        else
+            outport_buffer &= ~(1<<BIT_ARROW_DOWN);
     } else {
-	/* NE -> vypni sipky */
-	outport_buffer |= 1<<BIT_ARROW_UP | 1<<BIT_ARROW_DOWN;
+        /* NE -> vypni sipky */
+        outport_buffer |= 1<<BIT_ARROW_UP | 1<<BIT_ARROW_DOWN;
     }
 }
 
@@ -232,11 +237,12 @@ light(void)
     const unsigned char input = inportb(port_floors);
     /* test podminek sviceni */
     if (!(input & 1<<BIT_SENSOR_FLOOR) || input & 1<<BIT_SENSOR_DOOR) {
-	outport_buffer &= ~(1<<BIT_LIGHT);
+        outport_buffer &= ~(1<<BIT_LIGHT);
     } else {
-	outport_buffer |= 1<<BIT_LIGHT;
+        outport_buffer |= 1<<BIT_LIGHT;
     }
 }
+
 int
 main(void)
 {
@@ -247,23 +253,24 @@ main(void)
     /* vychozi hodnota soucasneho patra */
     current_floor = 0;
 
-    /* prvni stav programu */
+    /* prvni rezim programu */
     elevatorControlState = initFirstFloor;
 
     do {
-	/* Main Infinite Loop */
+        /* Main Infinite Loop */
 
-	/* rizeni vytahu */
-	elevatorControlState();
+        /* rizeni vytahu */
+        elevatorControlState();
 
-	/* rizeni displeje */
-	segDisp();
+        /* rizeni displeje */
+        segDisp();
 
-	/* rizeni sipek */
-	arrowDisp();
+        /* rizeni sipek */
+        arrowDisp();
 
-	/* svetlo v kabine */
-	light();
+        /* svetlo v kabine */
+        light();
+
         /* odesli zpracovana data na vystup */
         outportb(port_outputs, outport_buffer);
 
